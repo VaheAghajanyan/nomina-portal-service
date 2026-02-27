@@ -1,11 +1,15 @@
 package com.nomina.nomina_portal_service.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 public class RegisterRequest {
 	@NotBlank
+	@Email(message = "Username must be a valid email address.")
+	@Pattern(regexp = ".*\\..*", message = "Username must contain '.'")
 	@Size(min = 3, max = 100)
 	private String username;
 

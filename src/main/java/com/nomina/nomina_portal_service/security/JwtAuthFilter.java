@@ -63,8 +63,17 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 			}
 
 			String username = claims.get("username", String.class);
+			String userId = claims.getSubject();
+			Long parsedUserId;
+			try {
+				parsedUserId = Long.parseLong(userId);
+			} catch (NumberFormatException ex) {
+				writeError(response, HttpStatus.UNAUTHORIZED, "Invalid token subject.");
+				return;
+			}
 			UsernamePasswordAuthenticationToken authentication =
 				new UsernamePasswordAuthenticationToken(username, null, authorities);
+			authentication.setDetails(parsedUserId);
 			SecurityContextHolder.getContext().setAuthentication(authentication);
 		} catch (JwtException ex) {
 			writeError(response, HttpStatus.UNAUTHORIZED, "Invalid or expired token.");

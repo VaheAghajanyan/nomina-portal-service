@@ -34,6 +34,12 @@ public class ApiExceptionHandler {
 			.body(new ApiError("Conflict", ex.getMessage()));
 	}
 
+	@ExceptionHandler(NotFoundException.class)
+	public ResponseEntity<ApiError> handleNotFound(NotFoundException ex) {
+		return ResponseEntity.status(HttpStatus.NOT_FOUND)
+			.body(new ApiError("Not Found", ex.getMessage()));
+	}
+
 	@ExceptionHandler(UnauthorizedException.class)
 	public ResponseEntity<ApiError> handleUnauthorized(UnauthorizedException ex) {
 		return ResponseEntity.status(HttpStatus.UNAUTHORIZED)

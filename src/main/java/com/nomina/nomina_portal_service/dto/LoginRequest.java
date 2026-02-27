@@ -1,9 +1,13 @@
 package com.nomina.nomina_portal_service.dto;
 
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 
 public class LoginRequest {
 	@NotBlank
+	@Email(message = "Username must be a valid email address.")
+	@Pattern(regexp = ".*\\..*", message = "Username must contain '.'")
 	private String username;
 
 	@NotBlank
