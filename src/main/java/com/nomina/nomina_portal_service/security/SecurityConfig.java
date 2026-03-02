@@ -36,6 +36,8 @@ public class SecurityConfig {
 			.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 			.authorizeHttpRequests(auth -> auth
 				.requestMatchers(HttpMethod.POST, "/auth/register").hasAuthority("ADMIN")
+				.requestMatchers(HttpMethod.GET, "/users/**").hasAuthority("ADMIN")
+				.requestMatchers(HttpMethod.PUT, "/users/**").hasAuthority("ADMIN")
 				.requestMatchers(HttpMethod.POST, "/trademarks/**").hasAuthority("SUPER")
 				.requestMatchers(HttpMethod.PUT, "/trademarks/**").hasAuthority("SUPER")
 				.requestMatchers(HttpMethod.DELETE, "/trademarks/**").hasAuthority("SUPER")

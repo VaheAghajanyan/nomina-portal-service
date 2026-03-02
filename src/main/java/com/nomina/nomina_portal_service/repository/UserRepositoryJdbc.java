@@ -5,6 +5,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Map;
 import java.util.Optional;
+import java.util.List;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -61,6 +62,25 @@ public class UserRepositoryJdbc {
 		return count != null && count > 0;
 	}
 
+	public boolean existsByUsernameAndIdNot(String username, long id) {
+		String sql = "SELECT COUNT(1) FROM users WHERE username = :username AND id <> :id";
+		Map<String, Object> params = Map.of(
+			"username", username,
+			"id", id
+		);
+		Integer count = jdbcTemplate.queryForObject(sql, params, Integer.class);
+		return count != null && count > 0;
+	}
+
+	public List<User> findAll() {
+		String sql = """
+			SELECT id, username, password_hash, is_super_user, is_admin_user, is_active_user
+			FROM users
+			ORDER BY id
+			""";
+		return jdbcTemplate.query(sql, USER_ROW_MAPPER);
+	}
+
 	public User insert(User user) {
 		String sql = """
 			INSERT INTO users (username, password_hash, is_super_user, is_admin_user, is_active_user)
@@ -79,5 +99,30 @@ public class UserRepositoryJdbc {
 			user.setId(key.longValue());
 		}
 		return user;
+	}
+
+	public Optional<User> update(User user) {
+		String sql = """
+			UPDATE users
+			SET
+				username = :username,
+				password_hash = :password_hash,
+				is_super_user = :is_super_user,
+				is_admin_user = :is_admin_user,
+				is_active_user = :is_active_user
+			WHERE id = :id
+			""";
+		MapSqlParameterSource params = new MapSqlParameterSource()
+			.addValue("id", user.getId())
+			.addValue("username", user.getUsername())
+			.addValue("password_hash", user.getPasswordHash())
+			.addValue("is_super_user", user.isSuperUser())
+			.addValue("is_admin_user", user.isAdminUser())
+			.addValue("is_active_user", user.isActiveUser());
+		int updated = jdbcTemplate.update(sql, params);
+		if (updated == 0) {
+			return Optional.empty();
+		}
+		return findById(user.getId());
 	}
 }
