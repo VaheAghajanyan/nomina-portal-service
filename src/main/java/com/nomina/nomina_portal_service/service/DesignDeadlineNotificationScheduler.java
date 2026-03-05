@@ -1,0 +1,153 @@
+package com.nomina.nomina_portal_service.service;
+
+import com.nomina.nomina_portal_service.model.Design;
+import com.nomina.nomina_portal_service.model.Notification;
+import com.nomina.nomina_portal_service.model.User;
+import com.nomina.nomina_portal_service.repository.DesignRepositoryJdbc;
+import com.nomina.nomina_portal_service.repository.NotificationRepositoryJdbc;
+import com.nomina.nomina_portal_service.repository.UserRepositoryJdbc;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
+import java.util.Set;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
+
+@Component
+public class DesignDeadlineNotificationScheduler {
+	private static final Logger log = LoggerFactory.getLogger(DesignDeadlineNotificationScheduler.class);
+	private static final Set<Integer> SUPPORTED_DEADLINE_TYPES = Set.of(7, 14, 30, 180, 360);
+	private static final String NOTIFICATION_TYPE = "DESIGN_DEADLINE";
+	private final DesignRepositoryJdbc designRepository;
+	private final UserRepositoryJdbc userRepository;
+	private final NotificationRepositoryJdbc notificationRepository;
+	private final JavaMailSender mailSender;
+	private final String mailFrom;
+
+	public DesignDeadlineNotificationScheduler(
+		DesignRepositoryJdbc designRepository,
+		UserRepositoryJdbc userRepository,
+		NotificationRepositoryJdbc notificationRepository,
+		ObjectProvider<JavaMailSender> mailSenderProvider,
+		@Value("${notifications.mail.from:no-reply@nomina.local}") String mailFrom
+	) {
+		this.designRepository = designRepository;
+		this.userRepository = userRepository;
+		this.notificationRepository = notificationRepository;
+		this.mailSender = mailSenderProvider.getIfAvailable();
+		this.mailFrom = mailFrom;
+	}
+
+	@Scheduled(
+		cron = "${notifications.design.cron:${notifications.trademark.cron:0 0 9 * * *}}",
+		zone = "${notifications.design.zone:${notifications.trademark.zone:UTC}}"
+	)
+	public void checkDesignDeadlinesAndSendNotifications() {
+		LocalDate today = LocalDate.now();
+		List<User> users = userRepository.findAll();
+		if (users.isEmpty()) {
+			return;
+		}
+
+		for (Design design : designRepository.findAll()) {
+			LocalDate deadlineDate = parseDeadline(design.renewalPeriods());
+			Integer deadlineType = resolveDeadlineType(today, deadlineDate);
+			if (deadlineType == null || design.createdByUser() == null) {
+				continue;
+			}
+
+			String body = buildBody(design.designTitle(), deadlineType);
+			boolean alreadyExists = notificationRepository.existsDeadlineNotification(
+				NOTIFICATION_TYPE,
+				design.createdByUser(),
+				body,
+				today,
+				deadlineDate,
+				deadlineType
+			);
+			if (alreadyExists) {
+				continue;
+			}
+
+			boolean sentToAll = sendToAllUsers(users, design.designTitle(), body);
+			if (!sentToAll) {
+				continue;
+			}
+
+			notificationRepository.insert(new Notification(
+				null,
+				NOTIFICATION_TYPE,
+				design.createdByUser(),
+				body,
+				today,
+				deadlineDate,
+				deadlineType,
+				Boolean.FALSE
+			));
+		}
+	}
+
+	private LocalDate parseDeadline(String renewalPeriods) {
+		if (renewalPeriods == null || renewalPeriods.isBlank()) {
+			return null;
+		}
+		try {
+			return LocalDate.parse(renewalPeriods);
+		} catch (DateTimeParseException ex) {
+			log.warn("Skipping design deadline check due to non-date renewalPeriods value: {}", renewalPeriods);
+			return null;
+		}
+	}
+
+	private Integer resolveDeadlineType(LocalDate today, LocalDate deadlineDate) {
+		if (deadlineDate == null) {
+			return null;
+		}
+		long days = ChronoUnit.DAYS.between(today, deadlineDate);
+		if (days < 0 || days > Integer.MAX_VALUE) {
+			return null;
+		}
+		int daysLeft = (int) days;
+		return SUPPORTED_DEADLINE_TYPES.contains(daysLeft) ? daysLeft : null;
+	}
+
+	private String buildBody(String designTitle, int daysLeft) {
+		return "The design with the name '" + designTitle + "' has " + daysLeft + " days left until its deadline.";
+	}
+
+	private boolean sendToAllUsers(List<User> users, String designTitle, String body) {
+		if (mailSender == null) {
+			log.warn("JavaMailSender bean is not configured. Skipping design deadline email sending.");
+			return false;
+		}
+
+		String subject = "Design Deadline Reminder - " + designTitle;
+		boolean sentAtLeastOne = false;
+		for (User user : users) {
+			if (user.getUsername() == null || user.getUsername().isBlank()) {
+				log.warn("Skipping notification email for user {} due to missing username email.", user.getId());
+				continue;
+			}
+
+			try {
+				SimpleMailMessage message = new SimpleMailMessage();
+				message.setFrom(mailFrom);
+				message.setTo(user.getUsername());
+				message.setSubject(subject);
+				message.setText(body);
+				mailSender.send(message);
+				sentAtLeastOne = true;
+			} catch (Exception ex) {
+				log.error("Failed to send design deadline email to {}", user.getUsername(), ex);
+			}
+		}
+		return sentAtLeastOne;
+	}
+}
