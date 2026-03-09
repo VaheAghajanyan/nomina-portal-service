@@ -2,6 +2,7 @@ package com.nomina.nomina_portal_service.controller;
 
 import com.nomina.nomina_portal_service.dto.AuthResponse;
 import com.nomina.nomina_portal_service.dto.LoginRequest;
+import com.nomina.nomina_portal_service.dto.RefreshRequest;
 import com.nomina.nomina_portal_service.dto.RegisterRequest;
 import com.nomina.nomina_portal_service.dto.UserResponse;
 import com.nomina.nomina_portal_service.service.AuthService;
@@ -28,5 +29,10 @@ public class AuthController {
 	@PostMapping("/login")
 	public AuthResponse login(@Valid @RequestBody LoginRequest request) {
 		return authService.login(request);
+	}
+
+	@PostMapping("/refresh")
+	public AuthResponse refresh(@Valid @RequestBody RefreshRequest request) {
+		return authService.refresh(request);
 	}
 }
