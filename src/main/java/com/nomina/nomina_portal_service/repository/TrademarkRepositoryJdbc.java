@@ -17,21 +17,21 @@ public class TrademarkRepositoryJdbc {
 		id, trademark_name, mark_image, mark_type, status, jurisdiction,
 		application_number, application_date, registration_number, registration_date,
 		owner_name, owner_address, classes, goods_services_text,
-		priority_number, priority_date, priority_country,
-		renewal_date, grace_period_end, opposition_deadline, proof_of_use_deadline, interim_deadline,
-		last_action, legal_events, opposition, cancellation, litigation, license, assignment,
+		publication_date, priority_date, priority_country,
+		renewal_date, grace_period_end, opposition_deadline, proof_of_use_deadline, action_deadline,
+		last_action, basic, opposition, cancellation, litigation, license, assignment,
 		responsible_attorney, representative, contact, notes,
-		created_by_user, date_of_creation, current_status
+		created_by_user, date_of_creation, needed_action
 		""";
 	private static final String SELECT_COLUMNS_WITH_USERNAME = """
 		t.id, t.trademark_name, t.mark_image, t.mark_type, t.status, t.jurisdiction,
 		t.application_number, t.application_date, t.registration_number, t.registration_date,
 		t.owner_name, t.owner_address, t.classes, t.goods_services_text,
-		t.priority_number, t.priority_date, t.priority_country,
-		t.renewal_date, t.grace_period_end, t.opposition_deadline, t.proof_of_use_deadline, t.interim_deadline,
-		t.last_action, t.legal_events, t.opposition, t.cancellation, t.litigation, t.license, t.assignment,
+		t.publication_date, t.priority_date, t.priority_country,
+		t.renewal_date, t.grace_period_end, t.opposition_deadline, t.proof_of_use_deadline, t.action_deadline,
+		t.last_action, t.basic, t.opposition, t.cancellation, t.litigation, t.license, t.assignment,
 		t.responsible_attorney, t.representative, t.contact, t.notes,
-		t.created_by_user, u.username AS created_by_username, t.date_of_creation, t.current_status
+		t.created_by_user, u.username AS created_by_username, t.date_of_creation, t.needed_action
 		""";
 
 	private final NamedParameterJdbcTemplate jdbcTemplate;
@@ -68,21 +68,21 @@ public class TrademarkRepositoryJdbc {
 				trademark_name, mark_image, mark_type, status, jurisdiction,
 				application_number, application_date, registration_number, registration_date,
 				owner_name, owner_address, classes, goods_services_text,
-				priority_number, priority_date, priority_country,
-				renewal_date, grace_period_end, opposition_deadline, proof_of_use_deadline, interim_deadline,
-				last_action, legal_events, opposition, cancellation, litigation, license, assignment,
+				publication_date, priority_date, priority_country,
+				renewal_date, grace_period_end, opposition_deadline, proof_of_use_deadline, action_deadline,
+				last_action, basic, opposition, cancellation, litigation, license, assignment,
 				responsible_attorney, representative, contact, notes,
-				created_by_user, date_of_creation, current_status
+				created_by_user, date_of_creation, needed_action
 			)
 			VALUES (
 				:trademarkName, :markImage, :markType, :status, :jurisdiction,
 				:applicationNumber, :applicationDate, :registrationNumber, :registrationDate,
 				:ownerName, :ownerAddress, :classes, :goodsServicesText,
-				:priorityNumber, :priorityDate, :priorityCountry,
-				:renewalDate, :gracePeriodEnd, :oppositionDeadline, :proofOfUseDeadline, :interimDeadline,
-				:lastAction, :legalEvents, :opposition, :cancellation, :litigation, :license, :assignment,
+				:publicationDate, :priorityDate, :priorityCountry,
+				:renewalDate, :gracePeriodEnd, :oppositionDeadline, :proofOfUseDeadline, :actionDeadline,
+				:lastAction, :basic, :opposition, :cancellation, :litigation, :license, :assignment,
 				:responsibleAttorney, :representative, :contact, :notes,
-				:createdByUser, :dateOfCreation, :currentStatus
+				:createdByUser, :dateOfCreation, :neededAction
 			)
 			RETURNING id
 			""";
@@ -107,16 +107,16 @@ public class TrademarkRepositoryJdbc {
 				owner_address = :ownerAddress,
 				classes = :classes,
 				goods_services_text = :goodsServicesText,
-				priority_number = :priorityNumber,
+				publication_date = :publicationDate,
 				priority_date = :priorityDate,
 				priority_country = :priorityCountry,
 				renewal_date = :renewalDate,
 				grace_period_end = :gracePeriodEnd,
 				opposition_deadline = :oppositionDeadline,
 				proof_of_use_deadline = :proofOfUseDeadline,
-				interim_deadline = :interimDeadline,
+				action_deadline = :actionDeadline,
 				last_action = :lastAction,
-				legal_events = :legalEvents,
+				basic = :basic,
 				opposition = :opposition,
 				cancellation = :cancellation,
 				litigation = :litigation,
@@ -126,7 +126,7 @@ public class TrademarkRepositoryJdbc {
 				representative = :representative,
 				contact = :contact,
 				notes = :notes,
-				current_status = :currentStatus
+				needed_action = :neededAction
 			WHERE id = :id
 			""";
 
@@ -162,16 +162,16 @@ public class TrademarkRepositoryJdbc {
 			.addValue("ownerAddress", trademark.ownerAddress())
 			.addValue("classes", trademark.classes())
 			.addValue("goodsServicesText", trademark.goodsServicesText())
-			.addValue("priorityNumber", trademark.priorityNumber())
+			.addValue("publicationDate", trademark.publicationDate())
 			.addValue("priorityDate", trademark.priorityDate())
 			.addValue("priorityCountry", trademark.priorityCountry())
 			.addValue("renewalDate", trademark.renewalDate())
 			.addValue("gracePeriodEnd", trademark.gracePeriodEnd())
 			.addValue("oppositionDeadline", trademark.oppositionDeadline())
 			.addValue("proofOfUseDeadline", trademark.proofOfUseDeadline())
-			.addValue("interimDeadline", trademark.interimDeadline())
+			.addValue("actionDeadline", trademark.actionDeadline())
 			.addValue("lastAction", trademark.lastAction())
-			.addValue("legalEvents", trademark.legalEvents())
+			.addValue("basic", trademark.basic())
 			.addValue("opposition", trademark.opposition())
 			.addValue("cancellation", trademark.cancellation())
 			.addValue("litigation", trademark.litigation())
@@ -183,7 +183,7 @@ public class TrademarkRepositoryJdbc {
 			.addValue("notes", trademark.notes())
 			.addValue("createdByUser", trademark.createdByUser())
 			.addValue("dateOfCreation", trademark.dateOfCreation())
-			.addValue("currentStatus", trademark.currentStatus());
+			.addValue("neededAction", trademark.neededAction());
 
 		if (includeId) {
 			params.addValue("id", trademark.id());

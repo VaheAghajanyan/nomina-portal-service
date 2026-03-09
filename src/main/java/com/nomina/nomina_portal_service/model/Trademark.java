@@ -18,16 +18,16 @@ public record Trademark(
 	String ownerAddress,
 	String classes,
 	String goodsServicesText,
-	String priorityNumber,
+	String publicationDate,
 	LocalDate priorityDate,
 	String priorityCountry,
 	LocalDate renewalDate,
 	String gracePeriodEnd,
 	String oppositionDeadline,
 	String proofOfUseDeadline,
-	String interimDeadline,
+	String actionDeadline,
 	String lastAction,
-	String legalEvents,
+	String basic,
 	String opposition,
 	String cancellation,
 	String litigation,
@@ -40,6 +40,6 @@ public record Trademark(
 	Long createdByUser,
 	String createdByUsername,
 	LocalDate dateOfCreation,
-	String currentStatus
+	String neededAction
 ) {
 }

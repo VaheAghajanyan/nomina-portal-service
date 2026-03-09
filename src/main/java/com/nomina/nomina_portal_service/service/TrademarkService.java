@@ -96,16 +96,16 @@ public class TrademarkService {
 			request.ownerAddress(),
 			request.classes(),
 			request.goodsServicesText(),
-			request.priorityNumber(),
+			request.publicationDate(),
 			request.priorityDate(),
 			request.priorityCountry(),
 			request.renewalDate(),
 			request.gracePeriodEnd(),
 			request.oppositionDeadline(),
 			request.proofOfUseDeadline(),
-			request.interimDeadline(),
+			request.actionDeadline(),
 			request.lastAction(),
-			request.legalEvents(),
+			request.basic(),
 			request.opposition(),
 			request.cancellation(),
 			request.litigation(),
@@ -118,7 +118,7 @@ public class TrademarkService {
 			createdByUser,
 			null,
 			dateOfCreation,
-			request.currentStatus()
+			request.neededAction()
 		);
 	}
 
@@ -138,16 +138,16 @@ public class TrademarkService {
 			trademark.ownerAddress(),
 			trademark.classes(),
 			trademark.goodsServicesText(),
-			trademark.priorityNumber(),
+			trademark.publicationDate(),
 			trademark.priorityDate(),
 			trademark.priorityCountry(),
 			trademark.renewalDate(),
 			trademark.gracePeriodEnd(),
 			trademark.oppositionDeadline(),
 			trademark.proofOfUseDeadline(),
-			trademark.interimDeadline(),
+			trademark.actionDeadline(),
 			trademark.lastAction(),
-			trademark.legalEvents(),
+			trademark.basic(),
 			trademark.opposition(),
 			trademark.cancellation(),
 			trademark.litigation(),
@@ -159,7 +159,7 @@ public class TrademarkService {
 			trademark.notes(),
 			trademark.createdByUsername(),
 			trademark.dateOfCreation(),
-			trademark.currentStatus()
+			trademark.neededAction()
 		);
 	}
 
