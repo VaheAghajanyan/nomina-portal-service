@@ -2,13 +2,14 @@ package com.nomina.nomina_portal_service.controller;
 
 import com.nomina.nomina_portal_service.dto.AuthResponse;
 import com.nomina.nomina_portal_service.dto.LoginRequest;
-import com.nomina.nomina_portal_service.dto.RefreshRequest;
 import com.nomina.nomina_portal_service.dto.RegisterRequest;
 import com.nomina.nomina_portal_service.dto.UserResponse;
 import com.nomina.nomina_portal_service.service.AuthService;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpHeaders;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -32,7 +33,7 @@ public class AuthController {
 	}
 
 	@PostMapping("/refresh")
-	public AuthResponse refresh(@Valid @RequestBody RefreshRequest request) {
-		return authService.refresh(request);
+	public AuthResponse refresh(@RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorizationHeader) {
+		return authService.refresh(authorizationHeader);
 	}
 }

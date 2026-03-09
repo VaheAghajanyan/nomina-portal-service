@@ -2,7 +2,6 @@ package com.nomina.nomina_portal_service.service;
 
 import com.nomina.nomina_portal_service.dto.AuthResponse;
 import com.nomina.nomina_portal_service.dto.LoginRequest;
-import com.nomina.nomina_portal_service.dto.RefreshRequest;
 import com.nomina.nomina_portal_service.dto.RegisterRequest;
 import com.nomina.nomina_portal_service.dto.UserResponse;
 import com.nomina.nomina_portal_service.exception.ConflictException;
@@ -58,10 +57,19 @@ public class AuthService {
 		return buildAuthResponse(user);
 	}
 
-	public AuthResponse refresh(RefreshRequest request) {
+	public AuthResponse refresh(String authorizationHeader) {
+		if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
+			throw new UnauthorizedException("Missing or invalid Authorization header.");
+		}
+
+		String token = authorizationHeader.substring(7);
+		if (token.isBlank()) {
+			throw new UnauthorizedException("Missing or invalid Authorization header.");
+		}
+
 		Claims claims;
 		try {
-			claims = jwtService.parseToken(request.getAccessToken());
+			claims = jwtService.parseToken(token);
 		} catch (JwtException ex) {
 			throw new UnauthorizedException("Invalid or expired token.");
 		}
