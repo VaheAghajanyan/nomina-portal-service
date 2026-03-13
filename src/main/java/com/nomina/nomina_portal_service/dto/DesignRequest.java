@@ -1,6 +1,8 @@
 package com.nomina.nomina_portal_service.dto;
 
+import com.nomina.nomina_portal_service.model.MadridSystemItem;
 import java.time.LocalDate;
+import java.util.List;
 
 public record DesignRequest(
 	String designTitle,
@@ -30,6 +32,7 @@ public record DesignRequest(
 	String representative,
 	String contact,
 	String notes,
+	List<MadridSystemItem> madridSystem,
 	LocalDate dateOfCreation,
 	String currentStatus
 ) {

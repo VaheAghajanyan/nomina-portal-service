@@ -1,18 +1,23 @@
 package com.nomina.nomina_portal_service.repository;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nomina.nomina_portal_service.model.MadridSystemItem;
 import com.nomina.nomina_portal_service.model.Trademark;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import org.springframework.jdbc.core.DataClassRowMapper;
-import org.springframework.jdbc.core.RowMapper;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 @Repository
 public class TrademarkRepositoryJdbc {
-	private static final RowMapper<Trademark> TRADEMARK_ROW_MAPPER = DataClassRowMapper.newInstance(Trademark.class);
+	private static final TypeReference<List<MadridSystemItem>> MADRID_SYSTEM_LIST_TYPE = new TypeReference<>() {
+	};
 	private static final String SELECT_COLUMNS = """
 		id, trademark_name, mark_image, mark_type, status, jurisdiction,
 		application_number, application_date, registration_number, registration_date,
@@ -20,7 +25,7 @@ public class TrademarkRepositoryJdbc {
 		publication_date, priority_date, priority_country,
 		renewal_date, grace_period_end, opposition_deadline, proof_of_use_deadline, action_deadline,
 		last_action, basic, opposition, cancellation, litigation, license, assignment,
-		responsible_attorney, representative, contact, notes,
+		responsible_attorney, representative, contact, notes, madrid_system,
 		created_by_user, date_of_creation, needed_action
 		""";
 	private static final String SELECT_COLUMNS_WITH_USERNAME = """
@@ -30,14 +35,16 @@ public class TrademarkRepositoryJdbc {
 		t.publication_date, t.priority_date, t.priority_country,
 		t.renewal_date, t.grace_period_end, t.opposition_deadline, t.proof_of_use_deadline, t.action_deadline,
 		t.last_action, t.basic, t.opposition, t.cancellation, t.litigation, t.license, t.assignment,
-		t.responsible_attorney, t.representative, t.contact, t.notes,
+		t.responsible_attorney, t.representative, t.contact, t.notes, t.madrid_system,
 		t.created_by_user, u.username AS created_by_username, t.date_of_creation, t.needed_action
 		""";
 
 	private final NamedParameterJdbcTemplate jdbcTemplate;
+	private final ObjectMapper objectMapper;
 
-	public TrademarkRepositoryJdbc(NamedParameterJdbcTemplate jdbcTemplate) {
+	public TrademarkRepositoryJdbc(NamedParameterJdbcTemplate jdbcTemplate, ObjectMapper objectMapper) {
 		this.jdbcTemplate = jdbcTemplate;
+		this.objectMapper = objectMapper;
 	}
 
 	public List<Trademark> findAll() {
@@ -47,7 +54,7 @@ public class TrademarkRepositoryJdbc {
 			LEFT JOIN users u ON t.created_by_user = u.id
 			ORDER BY t.date_of_creation DESC NULLS LAST, t.id
 			""".formatted(SELECT_COLUMNS_WITH_USERNAME);
-		return jdbcTemplate.query(sql, TRADEMARK_ROW_MAPPER);
+		return jdbcTemplate.query(sql, (rs, rowNum) -> mapRow(rs));
 	}
 
 	public Optional<Trademark> findById(UUID id) {
@@ -57,7 +64,7 @@ public class TrademarkRepositoryJdbc {
 			LEFT JOIN users u ON t.created_by_user = u.id
 			WHERE t.id = :id
 			""".formatted(SELECT_COLUMNS_WITH_USERNAME);
-		return jdbcTemplate.query(sql, new MapSqlParameterSource("id", id), TRADEMARK_ROW_MAPPER)
+		return jdbcTemplate.query(sql, new MapSqlParameterSource("id", id), (rs, rowNum) -> mapRow(rs))
 			.stream()
 			.findFirst();
 	}
@@ -71,7 +78,7 @@ public class TrademarkRepositoryJdbc {
 				publication_date, priority_date, priority_country,
 				renewal_date, grace_period_end, opposition_deadline, proof_of_use_deadline, action_deadline,
 				last_action, basic, opposition, cancellation, litigation, license, assignment,
-				responsible_attorney, representative, contact, notes,
+				responsible_attorney, representative, contact, notes, madrid_system,
 				created_by_user, date_of_creation, needed_action
 			)
 			VALUES (
@@ -81,7 +88,7 @@ public class TrademarkRepositoryJdbc {
 				:publicationDate, :priorityDate, :priorityCountry,
 				:renewalDate, :gracePeriodEnd, :oppositionDeadline, :proofOfUseDeadline, :actionDeadline,
 				:lastAction, :basic, :opposition, :cancellation, :litigation, :license, :assignment,
-				:responsibleAttorney, :representative, :contact, :notes,
+				:responsibleAttorney, :representative, :contact, :notes, CAST(:madridSystem AS jsonb),
 				:createdByUser, :dateOfCreation, :neededAction
 			)
 			RETURNING id
@@ -126,6 +133,7 @@ public class TrademarkRepositoryJdbc {
 				representative = :representative,
 				contact = :contact,
 				notes = :notes,
+				madrid_system = CAST(:madridSystem AS jsonb),
 				needed_action = :neededAction
 			WHERE id = :id
 			""";
@@ -181,6 +189,7 @@ public class TrademarkRepositoryJdbc {
 			.addValue("representative", trademark.representative())
 			.addValue("contact", trademark.contact())
 			.addValue("notes", trademark.notes())
+			.addValue("madridSystem", toJsonbValue(trademark.madridSystem()))
 			.addValue("createdByUser", trademark.createdByUser())
 			.addValue("dateOfCreation", trademark.dateOfCreation())
 			.addValue("neededAction", trademark.neededAction());
@@ -190,5 +199,70 @@ public class TrademarkRepositoryJdbc {
 		}
 
 		return params;
+	}
+
+	private Trademark mapRow(ResultSet rs) throws SQLException {
+		return new Trademark(
+			rs.getObject("id", UUID.class),
+			rs.getString("trademark_name"),
+			rs.getString("mark_image"),
+			rs.getString("mark_type"),
+			rs.getString("status"),
+			rs.getString("jurisdiction"),
+			rs.getString("application_number"),
+			rs.getObject("application_date", java.time.LocalDate.class),
+			rs.getString("registration_number"),
+			rs.getObject("registration_date", java.time.LocalDate.class),
+			rs.getString("owner_name"),
+			rs.getString("owner_address"),
+			rs.getString("classes"),
+			rs.getString("goods_services_text"),
+			rs.getString("publication_date"),
+			rs.getObject("priority_date", java.time.LocalDate.class),
+			rs.getString("priority_country"),
+			rs.getObject("renewal_date", java.time.LocalDate.class),
+			rs.getString("grace_period_end"),
+			rs.getString("opposition_deadline"),
+			rs.getString("proof_of_use_deadline"),
+			rs.getString("action_deadline"),
+			rs.getString("last_action"),
+			rs.getString("basic"),
+			rs.getString("opposition"),
+			rs.getString("cancellation"),
+			rs.getString("litigation"),
+			rs.getString("license"),
+			rs.getString("assignment"),
+			rs.getString("responsible_attorney"),
+			rs.getString("representative"),
+			rs.getString("contact"),
+			rs.getString("notes"),
+			parseMadridSystem(rs.getString("madrid_system")),
+			rs.getObject("created_by_user", Long.class),
+			rs.getString("created_by_username"),
+			rs.getObject("date_of_creation", java.time.LocalDate.class),
+			rs.getString("needed_action")
+		);
+	}
+
+	private String toJsonbValue(List<MadridSystemItem> madridSystem) {
+		if (madridSystem == null) {
+			return null;
+		}
+		try {
+			return objectMapper.writeValueAsString(madridSystem);
+		} catch (JsonProcessingException ex) {
+			throw new IllegalStateException("Failed to serialize madridSystem.", ex);
+		}
+	}
+
+	private List<MadridSystemItem> parseMadridSystem(String json) {
+		if (json == null) {
+			return null;
+		}
+		try {
+			return objectMapper.readValue(json, MADRID_SYSTEM_LIST_TYPE);
+		} catch (JsonProcessingException ex) {
+			throw new IllegalStateException("Failed to parse madrid_system JSON.", ex);
+		}
 	}
 }

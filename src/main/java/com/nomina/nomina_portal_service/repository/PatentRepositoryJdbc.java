@@ -1,18 +1,23 @@
 package com.nomina.nomina_portal_service.repository;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nomina.nomina_portal_service.model.MadridSystemItem;
 import com.nomina.nomina_portal_service.model.Patent;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import org.springframework.jdbc.core.DataClassRowMapper;
-import org.springframework.jdbc.core.RowMapper;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 @Repository
 public class PatentRepositoryJdbc {
-	private static final RowMapper<Patent> PATENT_ROW_MAPPER = DataClassRowMapper.newInstance(Patent.class);
+	private static final TypeReference<List<MadridSystemItem>> MADRID_SYSTEM_LIST_TYPE = new TypeReference<>() {
+	};
 	private static final String SELECT_COLUMNS = """
 		id, title, patent_type, jurisdiction,
 		application_number, filing_date,
@@ -25,7 +30,7 @@ public class PatentRepositoryJdbc {
 		examination_request_deadline, office_action_deadline, grant_fee_deadline, validation_deadlines, annuity_due_dates, lapse_date,
 		license,
 		responsible_attorney, representative, contact,
-		notes,
+		notes, madrid_system,
 		created_by_user, date_of_creation,
 		current_status
 		""";
@@ -41,15 +46,17 @@ public class PatentRepositoryJdbc {
 		p.examination_request_deadline, p.office_action_deadline, p.grant_fee_deadline, p.validation_deadlines, p.annuity_due_dates, p.lapse_date,
 		p.license,
 		p.responsible_attorney, p.representative, p.contact,
-		p.notes,
+		p.notes, p.madrid_system,
 		p.created_by_user, u.username AS created_by_username, p.date_of_creation,
 		p.current_status
 		""";
 
 	private final NamedParameterJdbcTemplate jdbcTemplate;
+	private final ObjectMapper objectMapper;
 
-	public PatentRepositoryJdbc(NamedParameterJdbcTemplate jdbcTemplate) {
+	public PatentRepositoryJdbc(NamedParameterJdbcTemplate jdbcTemplate, ObjectMapper objectMapper) {
 		this.jdbcTemplate = jdbcTemplate;
+		this.objectMapper = objectMapper;
 	}
 
 	public List<Patent> findAll() {
@@ -59,7 +66,7 @@ public class PatentRepositoryJdbc {
 			LEFT JOIN users u ON p.created_by_user = u.id
 			ORDER BY p.date_of_creation DESC NULLS LAST, p.id
 			""".formatted(SELECT_COLUMNS_WITH_USERNAME);
-		return jdbcTemplate.query(sql, PATENT_ROW_MAPPER);
+		return jdbcTemplate.query(sql, (rs, rowNum) -> mapRow(rs));
 	}
 
 	public Optional<Patent> findById(UUID id) {
@@ -69,7 +76,7 @@ public class PatentRepositoryJdbc {
 			LEFT JOIN users u ON p.created_by_user = u.id
 			WHERE p.id = :id
 			""".formatted(SELECT_COLUMNS_WITH_USERNAME);
-		return jdbcTemplate.query(sql, new MapSqlParameterSource("id", id), PATENT_ROW_MAPPER)
+		return jdbcTemplate.query(sql, new MapSqlParameterSource("id", id), (rs, rowNum) -> mapRow(rs))
 			.stream()
 			.findFirst();
 	}
@@ -88,7 +95,7 @@ public class PatentRepositoryJdbc {
 				examination_request_deadline, office_action_deadline, grant_fee_deadline, validation_deadlines, annuity_due_dates, lapse_date,
 				license,
 				responsible_attorney, representative, contact,
-				notes,
+				notes, madrid_system,
 				created_by_user, date_of_creation,
 				current_status
 			)
@@ -104,7 +111,7 @@ public class PatentRepositoryJdbc {
 				:examinationRequestDeadline, :officeActionDeadline, :grantFeeDeadline, :validationDeadlines, :annuityDueDates, :lapseDate,
 				:license,
 				:responsibleAttorney, :representative, :contact,
-				:notes,
+				:notes, CAST(:madridSystem AS jsonb),
 				:createdByUser, :dateOfCreation,
 				:currentStatus
 			)
@@ -147,6 +154,7 @@ public class PatentRepositoryJdbc {
 				representative = :representative,
 				contact = :contact,
 				notes = :notes,
+				madrid_system = CAST(:madridSystem AS jsonb),
 				current_status = :currentStatus
 			WHERE id = :id
 			""";
@@ -199,6 +207,7 @@ public class PatentRepositoryJdbc {
 			.addValue("representative", patent.representative())
 			.addValue("contact", patent.contact())
 			.addValue("notes", patent.notes())
+			.addValue("madridSystem", toJsonbValue(patent.madridSystem()))
 			.addValue("createdByUser", patent.createdByUser())
 			.addValue("dateOfCreation", patent.dateOfCreation())
 			.addValue("currentStatus", patent.currentStatus());
@@ -208,5 +217,67 @@ public class PatentRepositoryJdbc {
 		}
 
 		return params;
+	}
+
+	private Patent mapRow(ResultSet rs) throws SQLException {
+		return new Patent(
+			rs.getObject("id", UUID.class),
+			rs.getString("title"),
+			rs.getString("patent_type"),
+			rs.getString("jurisdiction"),
+			rs.getString("application_number"),
+			rs.getObject("filing_date", java.time.LocalDate.class),
+			rs.getString("publication_number"),
+			rs.getObject("publication_date", java.time.LocalDate.class),
+			rs.getString("patent_number"),
+			rs.getObject("grant_date", java.time.LocalDate.class),
+			rs.getString("status"),
+			rs.getString("priority_number"),
+			rs.getObject("priority_date", java.time.LocalDate.class),
+			rs.getString("priority_country"),
+			rs.getString("inventors"),
+			rs.getString("inventor_country"),
+			rs.getString("applicant"),
+			rs.getString("assignee"),
+			rs.getString("ipc_cpc"),
+			rs.getObject("examination_request_deadline", java.time.LocalDate.class),
+			rs.getObject("office_action_deadline", java.time.LocalDate.class),
+			rs.getObject("grant_fee_deadline", java.time.LocalDate.class),
+			rs.getObject("validation_deadlines", java.time.LocalDate.class),
+			rs.getObject("annuity_due_dates", java.time.LocalDate.class),
+			rs.getObject("lapse_date", java.time.LocalDate.class),
+			rs.getString("license"),
+			rs.getString("responsible_attorney"),
+			rs.getString("representative"),
+			rs.getString("contact"),
+			rs.getString("notes"),
+			parseMadridSystem(rs.getString("madrid_system")),
+			rs.getObject("created_by_user", Long.class),
+			rs.getString("created_by_username"),
+			rs.getObject("date_of_creation", java.time.LocalDate.class),
+			rs.getString("current_status")
+		);
+	}
+
+	private String toJsonbValue(List<MadridSystemItem> madridSystem) {
+		if (madridSystem == null) {
+			return null;
+		}
+		try {
+			return objectMapper.writeValueAsString(madridSystem);
+		} catch (JsonProcessingException ex) {
+			throw new IllegalStateException("Failed to serialize madridSystem.", ex);
+		}
+	}
+
+	private List<MadridSystemItem> parseMadridSystem(String json) {
+		if (json == null) {
+			return null;
+		}
+		try {
+			return objectMapper.readValue(json, MADRID_SYSTEM_LIST_TYPE);
+		} catch (JsonProcessingException ex) {
+			throw new IllegalStateException("Failed to parse madrid_system JSON.", ex);
+		}
 	}
 }

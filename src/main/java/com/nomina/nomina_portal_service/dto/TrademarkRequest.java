@@ -1,6 +1,8 @@
 package com.nomina.nomina_portal_service.dto;
 
+import com.nomina.nomina_portal_service.model.MadridSystemItem;
 import java.time.LocalDate;
+import java.util.List;
 
 public record TrademarkRequest(
 	String trademarkName,
@@ -35,6 +37,7 @@ public record TrademarkRequest(
 	String representative,
 	String contact,
 	String notes,
+	List<MadridSystemItem> madridSystem,
 	LocalDate dateOfCreation,
 	String neededAction
 ) {

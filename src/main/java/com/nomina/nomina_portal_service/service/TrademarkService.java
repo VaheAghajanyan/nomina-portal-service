@@ -115,6 +115,7 @@ public class TrademarkService {
 			request.representative(),
 			request.contact(),
 			request.notes(),
+			request.madridSystem(),
 			createdByUser,
 			null,
 			dateOfCreation,
@@ -157,6 +158,7 @@ public class TrademarkService {
 			trademark.representative(),
 			trademark.contact(),
 			trademark.notes(),
+			trademark.madridSystem(),
 			trademark.createdByUsername(),
 			trademark.dateOfCreation(),
 			trademark.neededAction()

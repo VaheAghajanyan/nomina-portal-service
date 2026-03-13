@@ -110,6 +110,7 @@ public class DesignService {
 			request.representative(),
 			request.contact(),
 			request.notes(),
+			request.madridSystem(),
 			createdByUser,
 			null,
 			dateOfCreation,
@@ -147,6 +148,7 @@ public class DesignService {
 			design.representative(),
 			design.contact(),
 			design.notes(),
+			design.madridSystem(),
 			design.createdByUsername(),
 			design.dateOfCreation(),
 			design.currentStatus()

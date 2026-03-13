@@ -1,6 +1,7 @@
 package com.nomina.nomina_portal_service.model;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 public record Design(
@@ -32,6 +33,7 @@ public record Design(
 	String representative,
 	String contact,
 	String notes,
+	List<MadridSystemItem> madridSystem,
 	Long createdByUser,
 	String createdByUsername,
 	LocalDate dateOfCreation,

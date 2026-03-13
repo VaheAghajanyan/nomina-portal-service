@@ -1,18 +1,23 @@
 package com.nomina.nomina_portal_service.repository;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nomina.nomina_portal_service.model.Design;
+import com.nomina.nomina_portal_service.model.MadridSystemItem;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import org.springframework.jdbc.core.DataClassRowMapper;
-import org.springframework.jdbc.core.RowMapper;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 @Repository
 public class DesignRepositoryJdbc {
-	private static final RowMapper<Design> DESIGN_ROW_MAPPER = DataClassRowMapper.newInstance(Design.class);
+	private static final TypeReference<List<MadridSystemItem>> MADRID_SYSTEM_LIST_TYPE = new TypeReference<>() {
+	};
 	private static final String SELECT_COLUMNS = """
 		id, design_title, design_image, jurisdiction,
 		application_number, filing_date,
@@ -24,7 +29,7 @@ public class DesignRepositoryJdbc {
 		renewal_periods, grace_period_end, publication_deferment_end,
 		product_line, brand, license,
 		responsible_attorney, representative, contact,
-		notes,
+		notes, madrid_system,
 		created_by_user, date_of_creation,
 		current_status
 		""";
@@ -39,15 +44,17 @@ public class DesignRepositoryJdbc {
 		d.renewal_periods, d.grace_period_end, d.publication_deferment_end,
 		d.product_line, d.brand, d.license,
 		d.responsible_attorney, d.representative, d.contact,
-		d.notes,
+		d.notes, d.madrid_system,
 		d.created_by_user, u.username AS created_by_username, d.date_of_creation,
 		d.current_status
 		""";
 
 	private final NamedParameterJdbcTemplate jdbcTemplate;
+	private final ObjectMapper objectMapper;
 
-	public DesignRepositoryJdbc(NamedParameterJdbcTemplate jdbcTemplate) {
+	public DesignRepositoryJdbc(NamedParameterJdbcTemplate jdbcTemplate, ObjectMapper objectMapper) {
 		this.jdbcTemplate = jdbcTemplate;
+		this.objectMapper = objectMapper;
 	}
 
 	public List<Design> findAll() {
@@ -57,7 +64,7 @@ public class DesignRepositoryJdbc {
 			LEFT JOIN users u ON d.created_by_user = u.id
 			ORDER BY d.date_of_creation DESC NULLS LAST, d.id
 			""".formatted(SELECT_COLUMNS_WITH_USERNAME);
-		return jdbcTemplate.query(sql, DESIGN_ROW_MAPPER);
+		return jdbcTemplate.query(sql, (rs, rowNum) -> mapRow(rs));
 	}
 
 	public Optional<Design> findById(UUID id) {
@@ -67,7 +74,7 @@ public class DesignRepositoryJdbc {
 			LEFT JOIN users u ON d.created_by_user = u.id
 			WHERE d.id = :id
 			""".formatted(SELECT_COLUMNS_WITH_USERNAME);
-		return jdbcTemplate.query(sql, new MapSqlParameterSource("id", id), DESIGN_ROW_MAPPER)
+		return jdbcTemplate.query(sql, new MapSqlParameterSource("id", id), (rs, rowNum) -> mapRow(rs))
 			.stream()
 			.findFirst();
 	}
@@ -85,7 +92,7 @@ public class DesignRepositoryJdbc {
 				renewal_periods, grace_period_end, publication_deferment_end,
 				product_line, brand, license,
 				responsible_attorney, representative, contact,
-				notes,
+				notes, madrid_system,
 				created_by_user, date_of_creation,
 				current_status
 			)
@@ -100,7 +107,7 @@ public class DesignRepositoryJdbc {
 				:renewalPeriods, :gracePeriodEnd, :publicationDefermentEnd,
 				:productLine, :brand, :license,
 				:responsibleAttorney, :representative, :contact,
-				:notes,
+				:notes, CAST(:madridSystem AS jsonb),
 				:createdByUser, :dateOfCreation,
 				:currentStatus
 			)
@@ -141,6 +148,7 @@ public class DesignRepositoryJdbc {
 				representative = :representative,
 				contact = :contact,
 				notes = :notes,
+				madrid_system = CAST(:madridSystem AS jsonb),
 				current_status = :currentStatus
 			WHERE id = :id
 			""";
@@ -191,6 +199,7 @@ public class DesignRepositoryJdbc {
 			.addValue("representative", design.representative())
 			.addValue("contact", design.contact())
 			.addValue("notes", design.notes())
+			.addValue("madridSystem", toJsonbValue(design.madridSystem()))
 			.addValue("createdByUser", design.createdByUser())
 			.addValue("dateOfCreation", design.dateOfCreation())
 			.addValue("currentStatus", design.currentStatus());
@@ -200,5 +209,65 @@ public class DesignRepositoryJdbc {
 		}
 
 		return params;
+	}
+
+	private Design mapRow(ResultSet rs) throws SQLException {
+		return new Design(
+			rs.getObject("id", UUID.class),
+			rs.getString("design_title"),
+			rs.getString("design_image"),
+			rs.getString("jurisdiction"),
+			rs.getString("application_number"),
+			rs.getObject("filing_date", java.time.LocalDate.class),
+			rs.getString("registration_number"),
+			rs.getObject("registration_date", java.time.LocalDate.class),
+			rs.getString("status"),
+			rs.getString("locarno_class"),
+			rs.getString("priority_number"),
+			rs.getObject("priority_date", java.time.LocalDate.class),
+			rs.getString("priority_country"),
+			rs.getString("owner"),
+			rs.getString("designer"),
+			rs.getString("applicant"),
+			rs.getString("product_indication"),
+			rs.getString("color_claim"),
+			rs.getString("renewal_periods"),
+			rs.getObject("grace_period_end", java.time.LocalDate.class),
+			rs.getObject("publication_deferment_end", java.time.LocalDate.class),
+			rs.getString("product_line"),
+			rs.getString("brand"),
+			rs.getString("license"),
+			rs.getString("responsible_attorney"),
+			rs.getString("representative"),
+			rs.getString("contact"),
+			rs.getString("notes"),
+			parseMadridSystem(rs.getString("madrid_system")),
+			rs.getObject("created_by_user", Long.class),
+			rs.getString("created_by_username"),
+			rs.getObject("date_of_creation", java.time.LocalDate.class),
+			rs.getString("current_status")
+		);
+	}
+
+	private String toJsonbValue(List<MadridSystemItem> madridSystem) {
+		if (madridSystem == null) {
+			return null;
+		}
+		try {
+			return objectMapper.writeValueAsString(madridSystem);
+		} catch (JsonProcessingException ex) {
+			throw new IllegalStateException("Failed to serialize madridSystem.", ex);
+		}
+	}
+
+	private List<MadridSystemItem> parseMadridSystem(String json) {
+		if (json == null) {
+			return null;
+		}
+		try {
+			return objectMapper.readValue(json, MADRID_SYSTEM_LIST_TYPE);
+		} catch (JsonProcessingException ex) {
+			throw new IllegalStateException("Failed to parse madrid_system JSON.", ex);
+		}
 	}
 }

@@ -94,6 +94,7 @@ public class PatentService {
 			request.representative(),
 			request.contact(),
 			request.notes(),
+			request.madridSystem(),
 			createdByUser,
 			null,
 			dateOfCreation,
@@ -133,6 +134,7 @@ public class PatentService {
 			patent.representative(),
 			patent.contact(),
 			patent.notes(),
+			patent.madridSystem(),
 			patent.createdByUsername(),
 			patent.dateOfCreation(),
 			patent.currentStatus()
