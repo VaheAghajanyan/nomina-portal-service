@@ -49,6 +49,7 @@ public class SecurityConfig {
 				.requestMatchers(HttpMethod.POST, "/designs/**").hasAuthority("SUPER")
 				.requestMatchers(HttpMethod.PUT, "/designs/**").hasAuthority("SUPER")
 				.requestMatchers(HttpMethod.DELETE, "/designs/**").hasAuthority("SUPER")
+				.requestMatchers(HttpMethod.POST, "/files/**").hasAuthority("SUPER")
 				.requestMatchers("/auth/**").permitAll()
 				.anyRequest().authenticated()
 			)

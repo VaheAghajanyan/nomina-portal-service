@@ -28,17 +28,20 @@ public class TrademarkService {
 	private final TrademarkRepositoryJdbc trademarkRepository;
 	private final PatentRepositoryJdbc patentRepository;
 	private final DesignRepositoryJdbc designRepository;
+	private final FileStorageService fileStorageService;
 	private final ImageStorageService imageStorageService;
 
 	public TrademarkService(
 		TrademarkRepositoryJdbc trademarkRepository,
 		PatentRepositoryJdbc patentRepository,
 		DesignRepositoryJdbc designRepository,
+		FileStorageService fileStorageService,
 		ImageStorageService imageStorageService
 	) {
 		this.trademarkRepository = trademarkRepository;
 		this.patentRepository = patentRepository;
 		this.designRepository = designRepository;
+		this.fileStorageService = fileStorageService;
 		this.imageStorageService = imageStorageService;
 	}
 
@@ -113,6 +116,7 @@ public class TrademarkService {
 		}
 
 		int deleted = trademarkRepository.deleteByIds(List.copyOf(uniqueIds));
+		fileStorageService.deleteStoredFilesByEntityIds(List.copyOf(uniqueIds));
 		if (deleted != uniqueIds.size()) {
 			throw new NotFoundException("One or more trademarks were not found.");
 		}

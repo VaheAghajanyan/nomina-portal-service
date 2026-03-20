@@ -18,10 +18,16 @@ import org.springframework.stereotype.Service;
 @Service
 public class DesignService {
 	private final DesignRepositoryJdbc designRepository;
+	private final FileStorageService fileStorageService;
 	private final ImageStorageService imageStorageService;
 
-	public DesignService(DesignRepositoryJdbc designRepository, ImageStorageService imageStorageService) {
+	public DesignService(
+		DesignRepositoryJdbc designRepository,
+		FileStorageService fileStorageService,
+		ImageStorageService imageStorageService
+	) {
 		this.designRepository = designRepository;
+		this.fileStorageService = fileStorageService;
 		this.imageStorageService = imageStorageService;
 	}
 
@@ -69,6 +75,7 @@ public class DesignService {
 		}
 
 		int deleted = designRepository.deleteByIds(List.copyOf(uniqueIds));
+		fileStorageService.deleteStoredFilesByEntityIds(List.copyOf(uniqueIds));
 		if (deleted != uniqueIds.size()) {
 			throw new NotFoundException("One or more designs were not found.");
 		}

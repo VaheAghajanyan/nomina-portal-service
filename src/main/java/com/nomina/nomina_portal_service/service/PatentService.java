@@ -18,9 +18,11 @@ import org.springframework.stereotype.Service;
 @Service
 public class PatentService {
 	private final PatentRepositoryJdbc patentRepository;
+	private final FileStorageService fileStorageService;
 
-	public PatentService(PatentRepositoryJdbc patentRepository) {
+	public PatentService(PatentRepositoryJdbc patentRepository, FileStorageService fileStorageService) {
 		this.patentRepository = patentRepository;
+		this.fileStorageService = fileStorageService;
 	}
 
 	public List<PatentResponse> getAll() {
@@ -57,6 +59,7 @@ public class PatentService {
 		}
 
 		int deleted = patentRepository.deleteByIds(List.copyOf(uniqueIds));
+		fileStorageService.deleteStoredFilesByEntityIds(List.copyOf(uniqueIds));
 		if (deleted != uniqueIds.size()) {
 			throw new NotFoundException("One or more patents were not found.");
 		}
