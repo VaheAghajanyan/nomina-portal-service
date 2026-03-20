@@ -11,12 +11,14 @@ import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Set;
+import jakarta.mail.internet.MimeMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.SimpleMailMessage;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -30,17 +32,20 @@ public class DesignDeadlineNotificationScheduler {
 	private final NotificationRepositoryJdbc notificationRepository;
 	private final JavaMailSender mailSender;
 	private final String mailFrom;
+	private final NotificationEmailTemplateService notificationEmailTemplateService;
 
 	public DesignDeadlineNotificationScheduler(
 		DesignRepositoryJdbc designRepository,
 		UserRepositoryJdbc userRepository,
 		NotificationRepositoryJdbc notificationRepository,
+		NotificationEmailTemplateService notificationEmailTemplateService,
 		ObjectProvider<JavaMailSender> mailSenderProvider,
 		@Value("${notifications.mail.from:no-reply@nomina.local}") String mailFrom
 	) {
 		this.designRepository = designRepository;
 		this.userRepository = userRepository;
 		this.notificationRepository = notificationRepository;
+		this.notificationEmailTemplateService = notificationEmailTemplateService;
 		this.mailSender = mailSenderProvider.getIfAvailable();
 		this.mailFrom = mailFrom;
 	}
@@ -76,7 +81,15 @@ public class DesignDeadlineNotificationScheduler {
 				continue;
 			}
 
-			boolean sentToAll = sendToAllUsers(users, design.designTitle(), body);
+			String htmlBody = notificationEmailTemplateService.render(
+				"Design",
+				design.designTitle(),
+				design.registrationNumber(),
+				design.owner(),
+				deadlineDate,
+				deadlineType
+			);
+			boolean sentToAll = sendToAllUsers(users, design.designTitle(), body, htmlBody);
 			if (!sentToAll) {
 				continue;
 			}
@@ -122,7 +135,12 @@ public class DesignDeadlineNotificationScheduler {
 		return "The design with the name '" + designTitle + "' has " + daysLeft + " days left until its deadline.";
 	}
 
-	private boolean sendToAllUsers(List<User> users, String designTitle, String body) {
+	private boolean sendToAllUsers(
+		List<User> users,
+		String designTitle,
+		String body,
+		String htmlBody
+	) {
 		if (mailSender == null) {
 			log.warn("JavaMailSender bean is not configured. Skipping design deadline email sending.");
 			return false;
@@ -137,11 +155,13 @@ public class DesignDeadlineNotificationScheduler {
 			}
 
 			try {
-				SimpleMailMessage message = new SimpleMailMessage();
-				message.setFrom(mailFrom);
-				message.setTo(user.getUsername());
-				message.setSubject(subject);
-				message.setText(body);
+				MimeMessage message = mailSender.createMimeMessage();
+				MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+				helper.setFrom(mailFrom);
+				helper.setTo(user.getUsername());
+				helper.setSubject(subject);
+				helper.setText(htmlBody, true);
+				helper.addInline("nomina-logo", new ClassPathResource("email/nomina-logo.png"), "image/png");
 				mailSender.send(message);
 				sentAtLeastOne = true;
 			} catch (Exception ex) {

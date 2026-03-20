@@ -67,6 +67,18 @@ public class DesignRepositoryJdbc {
 		return jdbcTemplate.query(sql, (rs, rowNum) -> mapRow(rs));
 	}
 
+	public List<Design> findLatest(int limit) {
+		String sql = """
+			SELECT %s
+			FROM designs d
+			LEFT JOIN users u ON d.created_by_user = u.id
+			ORDER BY d.date_of_creation DESC NULLS LAST, d.id
+			LIMIT :limit
+			""".formatted(SELECT_COLUMNS_WITH_USERNAME);
+		MapSqlParameterSource params = new MapSqlParameterSource("limit", limit);
+		return jdbcTemplate.query(sql, params, (rs, rowNum) -> mapRow(rs));
+	}
+
 	public Optional<Design> findById(UUID id) {
 		String sql = """
 			SELECT %s

@@ -4,10 +4,17 @@ import com.nomina.nomina_portal_service.dto.TrademarkRequest;
 import com.nomina.nomina_portal_service.dto.TrademarkResponse;
 import com.nomina.nomina_portal_service.exception.NotFoundException;
 import com.nomina.nomina_portal_service.exception.UnauthorizedException;
+import com.nomina.nomina_portal_service.model.Design;
+import com.nomina.nomina_portal_service.model.LatestAddedRecord;
+import com.nomina.nomina_portal_service.model.Patent;
 import com.nomina.nomina_portal_service.model.Trademark;
+import com.nomina.nomina_portal_service.repository.DesignRepositoryJdbc;
+import com.nomina.nomina_portal_service.repository.PatentRepositoryJdbc;
 import com.nomina.nomina_portal_service.repository.TrademarkRepositoryJdbc;
 import java.time.LocalDate;
+import java.util.Comparator;
 import java.util.LinkedHashSet;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -17,17 +24,54 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class TrademarkService {
+	private static final int LATEST_LIMIT = 10;
 	private final TrademarkRepositoryJdbc trademarkRepository;
+	private final PatentRepositoryJdbc patentRepository;
+	private final DesignRepositoryJdbc designRepository;
 	private final ImageStorageService imageStorageService;
 
-	public TrademarkService(TrademarkRepositoryJdbc trademarkRepository, ImageStorageService imageStorageService) {
+	public TrademarkService(
+		TrademarkRepositoryJdbc trademarkRepository,
+		PatentRepositoryJdbc patentRepository,
+		DesignRepositoryJdbc designRepository,
+		ImageStorageService imageStorageService
+	) {
 		this.trademarkRepository = trademarkRepository;
+		this.patentRepository = patentRepository;
+		this.designRepository = designRepository;
 		this.imageStorageService = imageStorageService;
 	}
 
 	public List<TrademarkResponse> getAll() {
 		return trademarkRepository.findAll().stream()
 			.map(this::toResponse)
+			.toList();
+	}
+
+	public List<LatestAddedRecord> getLatestAdded() {
+		List<LatestAddedRecord> combined = new ArrayList<>();
+		combined.addAll(
+			trademarkRepository.findLatest(LATEST_LIMIT).stream()
+				.map(this::toLatestAddedRecord)
+				.toList()
+		);
+		combined.addAll(
+			patentRepository.findLatest(LATEST_LIMIT).stream()
+				.map(this::toLatestAddedRecord)
+				.toList()
+		);
+		combined.addAll(
+			designRepository.findLatest(LATEST_LIMIT).stream()
+				.map(this::toLatestAddedRecord)
+				.toList()
+		);
+
+		return combined.stream()
+			.sorted(
+				Comparator
+					.comparing(LatestAddedRecord::dateOfCreation, Comparator.nullsLast(Comparator.reverseOrder()))
+					.thenComparing(LatestAddedRecord::id, Comparator.nullsLast(Comparator.reverseOrder()))
+			)
 			.toList();
 	}
 
@@ -162,6 +206,45 @@ public class TrademarkService {
 			trademark.createdByUsername(),
 			trademark.dateOfCreation(),
 			trademark.neededAction()
+		);
+	}
+
+	private LatestAddedRecord toLatestAddedRecord(Trademark trademark) {
+		return new LatestAddedRecord(
+			trademark.id(),
+			trademark.trademarkName(),
+			trademark.applicationNumber(),
+			trademark.markImage(),
+			trademark.createdByUser(),
+			trademark.dateOfCreation(),
+			trademark.status(),
+			trademark.madridSystem()
+		);
+	}
+
+	private LatestAddedRecord toLatestAddedRecord(Patent patent) {
+		return new LatestAddedRecord(
+			patent.id(),
+			patent.title(),
+			patent.applicationNumber(),
+			null,
+			patent.createdByUser(),
+			patent.dateOfCreation(),
+			patent.status(),
+			patent.madridSystem()
+		);
+	}
+
+	private LatestAddedRecord toLatestAddedRecord(Design design) {
+		return new LatestAddedRecord(
+			design.id(),
+			design.designTitle(),
+			design.applicationNumber(),
+			design.designImage(),
+			design.createdByUser(),
+			design.dateOfCreation(),
+			design.status(),
+			design.madridSystem()
 		);
 	}
 

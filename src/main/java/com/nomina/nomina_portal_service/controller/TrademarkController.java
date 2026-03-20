@@ -2,6 +2,7 @@ package com.nomina.nomina_portal_service.controller;
 
 import com.nomina.nomina_portal_service.dto.TrademarkRequest;
 import com.nomina.nomina_portal_service.dto.TrademarkResponse;
+import com.nomina.nomina_portal_service.model.LatestAddedRecord;
 import com.nomina.nomina_portal_service.service.TrademarkService;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -29,6 +30,11 @@ public class TrademarkController {
 	@GetMapping
 	public List<TrademarkResponse> getAll() {
 		return trademarkService.getAll();
+	}
+
+	@GetMapping("/latest")
+	public List<LatestAddedRecord> getLatestAdded() {
+		return trademarkService.getLatestAdded();
 	}
 
 	@PostMapping

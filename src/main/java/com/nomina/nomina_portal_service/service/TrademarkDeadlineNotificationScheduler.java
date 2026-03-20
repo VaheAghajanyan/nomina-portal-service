@@ -10,12 +10,14 @@ import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Set;
+import jakarta.mail.internet.MimeMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.mail.SimpleMailMessage;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -29,17 +31,20 @@ public class TrademarkDeadlineNotificationScheduler {
 	private final NotificationRepositoryJdbc notificationRepository;
 	private final JavaMailSender mailSender;
 	private final String mailFrom;
+	private final NotificationEmailTemplateService notificationEmailTemplateService;
 
 	public TrademarkDeadlineNotificationScheduler(
 		TrademarkRepositoryJdbc trademarkRepository,
 		UserRepositoryJdbc userRepository,
 		NotificationRepositoryJdbc notificationRepository,
+		NotificationEmailTemplateService notificationEmailTemplateService,
 		ObjectProvider<JavaMailSender> mailSenderProvider,
 		@Value("${notifications.mail.from:no-reply@nomina.local}") String mailFrom
 	) {
 		this.trademarkRepository = trademarkRepository;
 		this.userRepository = userRepository;
 		this.notificationRepository = notificationRepository;
+		this.notificationEmailTemplateService = notificationEmailTemplateService;
 		this.mailSender = mailSenderProvider.getIfAvailable();
 		this.mailFrom = mailFrom;
 	}
@@ -77,7 +82,15 @@ public class TrademarkDeadlineNotificationScheduler {
 				continue;
 			}
 
-			boolean sentToAll = sendToAllUsers(users, trademark.trademarkName(), body);
+			String htmlBody = notificationEmailTemplateService.render(
+				"Trademark",
+				trademark.trademarkName(),
+				trademark.registrationNumber(),
+				trademark.ownerName(),
+				trademark.renewalDate(),
+				deadlineType
+			);
+			boolean sentToAll = sendToAllUsers(users, trademark.trademarkName(), body, htmlBody);
 			if (!sentToAll) {
 				continue;
 			}
@@ -111,7 +124,12 @@ public class TrademarkDeadlineNotificationScheduler {
 		return "The trademark with the name '" + trademarkName + "' has " + daysLeft + " days left until its deadline.";
 	}
 
-	private boolean sendToAllUsers(List<User> users, String trademarkName, String body) {
+	private boolean sendToAllUsers(
+		List<User> users,
+		String trademarkName,
+		String body,
+		String htmlBody
+	) {
 		if (mailSender == null) {
 			log.warn("JavaMailSender bean is not configured. Skipping trademark deadline email sending.");
 			return false;
@@ -126,11 +144,13 @@ public class TrademarkDeadlineNotificationScheduler {
 			}
 
 			try {
-				SimpleMailMessage message = new SimpleMailMessage();
-				message.setFrom(mailFrom);
-				message.setTo(user.getUsername());
-				message.setSubject(subject);
-				message.setText(body);
+				MimeMessage message = mailSender.createMimeMessage();
+				MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+				helper.setFrom(mailFrom);
+				helper.setTo(user.getUsername());
+				helper.setSubject(subject);
+				helper.setText(htmlBody, true);
+				helper.addInline("nomina-logo", new ClassPathResource("email/nomina-logo.png"), "image/png");
 				mailSender.send(message);
 				sentAtLeastOne = true;
 			} catch (Exception ex) {

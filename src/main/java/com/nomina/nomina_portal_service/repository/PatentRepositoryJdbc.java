@@ -69,6 +69,18 @@ public class PatentRepositoryJdbc {
 		return jdbcTemplate.query(sql, (rs, rowNum) -> mapRow(rs));
 	}
 
+	public List<Patent> findLatest(int limit) {
+		String sql = """
+			SELECT %s
+			FROM patents p
+			LEFT JOIN users u ON p.created_by_user = u.id
+			ORDER BY p.date_of_creation DESC NULLS LAST, p.id
+			LIMIT :limit
+			""".formatted(SELECT_COLUMNS_WITH_USERNAME);
+		MapSqlParameterSource params = new MapSqlParameterSource("limit", limit);
+		return jdbcTemplate.query(sql, params, (rs, rowNum) -> mapRow(rs));
+	}
+
 	public Optional<Patent> findById(UUID id) {
 		String sql = """
 			SELECT %s
